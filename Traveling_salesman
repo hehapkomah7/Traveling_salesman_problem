@@ -1,0 +1,315 @@
+#############################
+# the code is taken from the examples section for the MIP package (https://docs.python-mip.com/en/latest/examples.html)
+# supplement the example code with your own one below
+
+from itertools import product
+from sys import stdout as out
+from mip import Model, xsum, minimize, BINARY, CBC, CONTINUOUS, INTEGER
+import numpy as np
+import time
+
+# names of places to visit
+places = ['Antwerp', 'Bruges', 'C-Mine', 'Dinant', 'Ghent',
+          'Grand-Place de Bruxelles', 'Hasselt', 'Leuven',
+          'Mechelen', 'Mons', 'Montagne de Bueren', 'Namur',
+          'Remouchamps', 'Waterloo']
+
+# distances in an upper triangular matrix
+dists = [[83, 81, 113, 52, 42, 73, 44, 23, 91, 105, 90, 124, 57],
+         [161, 160, 39, 89, 151, 110, 90, 99, 177, 143, 193, 100],
+         [90, 125, 82, 13, 57, 71, 123, 38, 72, 59, 82],
+         [123, 77, 81, 71, 91, 72, 64, 24, 62, 63],
+         [51, 114, 72, 54, 69, 139, 105, 155, 62],
+         [70, 25, 22, 52, 90, 56, 105, 16],
+         [45, 61, 111, 36, 61, 57, 70],
+         [23, 71, 67, 48, 85, 29],
+         [74, 89, 69, 107, 36],
+         [117, 65, 125, 43],
+         [54, 22, 84],
+         [60, 44],
+         [97],
+         []]
+
+# number of nodes and list of vertices
+n, V = len(dists), set(range(len(dists)))
+
+# distances matrix
+c = [[0 if i == j
+      else dists[i][j-i-1] if j > i
+      else dists[j][i-j-1]
+      for j in V] for i in V]
+
+model = Model(solver_name=CBC)
+
+# binary variables indicating if arc (i,j) is used on the route or not
+x = [[model.add_var(var_type=BINARY) for j in V] for i in V]
+
+# continuous variable to prevent subtours: each city will have a
+# different sequential id in the planned route except the first one
+y = [model.add_var() for i in V]
+
+# objective function: minimize the distance
+model.objective = minimize(xsum(c[i][j]*x[i][j] for i in V for j in V))
+
+# constraint : leave each city only once
+for i in V:
+    model += xsum(x[i][j] for j in V - {i}) == 1
+
+# constraint : enter each city only once
+for i in V:
+    model += xsum(x[j][i] for j in V - {i}) == 1
+
+# subtour elimination
+for (i, j) in product(V - {0}, V - {0}):
+    if i != j:
+        model += y[i] - (n+1)*x[i][j] >= y[j]-n
+
+# optimizing
+model.optimize()
+
+# checking if a solution was found
+if model.num_solutions:
+    out.write('route with total distance %g found: %s'
+              % (model.objective_value, places[0]))
+    nc = 0
+    while True:
+        nc = [i for i in V if x[nc][i].x >= 0.99][0]
+        out.write(' -> %s' % places[nc])
+        if nc == 0:
+            break
+    out.write('\n')
+
+
+#### YOUR CODE HERE VVVVVVVVVVVVVVVVVV
+
+# TASK 1
+
+out.write('========== TASK 1 ==========\n')
+
+model_Task_1 = Model(solver_name=CBC)
+
+x1 = [[model_Task_1.add_var(var_type=CONTINUOUS) for j in V] for i in V]
+
+y1 = [model_Task_1.add_var() for i in V]
+
+model_Task_1.objective = minimize(xsum(c[i][j]*x1[i][j] for i in V for j in V))
+
+for i in V:
+    model_Task_1 += xsum(x1[i][j] for j in V - {i}) == 1
+
+for i in V:
+    model_Task_1 += xsum(x1[j][i] for j in V - {i}) == 1
+
+for (i, j) in product(V - {0}, V - {0}):
+    if i != j:
+        model_Task_1 += y1[i] - (n+1)*x1[i][j] >= y1[j]-n
+
+model_Task_1.optimize()
+
+if model_Task_1.num_solutions:
+    out.write('route with total distance %g found: %s'
+              % (model_Task_1.objective_value, places[0]))
+    nc = 0
+    while True:
+        nc = [i for i in V if x1[nc][i].x >= 0.99][0]
+        out.write(' -> %s' % places[nc])
+        if nc == 0:
+            break
+    out.write('\n')
+
+# TASK 2
+
+out.write('========== TASK 2 ==========\n')
+
+model_Task_2 = Model(solver_name=CBC)
+
+x2 = [[model_Task_2.add_var(var_type=BINARY) for j in V] for i in V]
+
+y2 = [model_Task_2.add_var() for i in V]
+
+model_Task_2.objective = minimize(xsum(c[i][j] * x2[i][j] for i in V for j in V))
+
+for i in V:
+    model_Task_2 += xsum(x2[i][j] for j in V - {i}) == 1
+
+for i in V:
+    model_Task_2 += xsum(x2[j][i] for j in V - {i}) == 1
+
+# for (i, j) in product(V - {0}, V - {0}):
+#     if i != j:
+#         model_Task_1 += y1[i] - (n + 1) * x1[i][j] >= y1[j] - n
+
+model_Task_2.optimize()
+
+if model_Task_2.num_solutions:
+    out.write('route with total distance %g found: %s'
+              % (model_Task_2.objective_value, places[0]))
+    nc = 0
+    while True:
+        nc = [i for i in V if x2[nc][i].x >= 0.99][0]
+        out.write(' -> %s' % places[nc])
+        if nc == 0:
+            break
+    out.write('\n')
+
+for i in V:
+    for j in V:
+        out.write(str(x2[i][j].x))
+        out.write(' ')
+    out.write('\n')
+
+not_x = np.zeros(n)
+
+def print_cycle(n0, visited, x):
+    out.write('%s'
+              % places[n0])
+    nc = n0
+    visited[nc] = 1
+    while True:
+        nc = [i for i in V if x[nc][i].x >= 0.99][0]
+        visited[nc] = 1
+        out.write(' -> %s' % places[nc])
+        if nc == n0:
+            break
+    out.write('\n')
+
+def find_first_of_value(array, value):
+    for i in range(n):
+        if array[i] == value:
+            return i
+    return -1
+
+#time.sleep(3)
+
+while True:
+    n0 = find_first_of_value(not_x, 0)
+    if n0 == -1:
+        break
+    print_cycle(n0, not_x, x2)
+
+# TASK 3
+
+start_time = time.time()
+
+places = ['Hasselt', 'Leuven',
+          'Mechelen', 'Mons', 'Montagne de Bueren', 'Namur',
+          'Remouchamps', 'Waterloo']
+
+# distances in an upper triangular matrix
+dists = [[45, 61, 111, 36, 61, 57, 70],
+         [23, 71, 67, 48, 85, 29],
+         [74, 89, 69, 107, 36],
+         [117, 65, 125, 43],
+         [54, 22, 84],
+         [60, 44],
+         [97],
+         []]
+
+# number of nodes and list of vertices
+n, V = len(dists), set(range(len(dists)))
+
+# distances matrix
+c = [[0 if i == j
+      else dists[i][j - i - 1] if j > i
+else dists[j][i - j - 1]
+      for j in V] for i in V]
+
+model_Task_3 = Model(solver_name=CBC)
+
+x3 = [[model_Task_3.add_var(var_type=BINARY) for j in V] for i in V]
+
+y3 = [model_Task_3.add_var() for i in V]
+
+model_Task_3.objective = minimize(xsum(c[i][j] * x3[i][j] for i in V for j in V))
+
+for i in V:
+    model_Task_3 += xsum(x3[i][j] for j in V - {i}) == 1
+
+for i in V:
+    model_Task_3 += xsum(x3[j][i] for j in V - {i}) == 1
+#
+# for (i, j) in product(V - {0}, V - {0}):
+#     if i != j:
+#         model_Task_1 += y1[i] - (n + 1) * x1[i][j] >= y1[j] - n
+
+def add_restrictions(m, array):
+    sum = None
+    for i in range(n):
+        if array[i] == 1:
+            continue
+        for j in range(n):
+            if array[j] == 0:
+                continue
+            if sum is None:
+                sum = x3[i][j]
+            else:
+                sum += x3[i][j]
+    if sum is None:
+        raise ValueError('sum=None')
+    m += sum >= 1
+
+results = []
+
+
+while True:
+    model_Task_3.optimize()
+    not_x = np.zeros(n)
+    print_cycle(0, not_x, x3)
+    print(model_Task_3.objective_value)
+    results += [model_Task_3.objective_value]
+    if find_first_of_value(not_x, 0) == -1:
+        print('====================================================')
+        break
+    add_restrictions(model_Task_3, not_x)
+
+print('iterations = ', len(results))
+
+print(results)
+
+print("--- %s seconds ---" % (time.time() - start_time))
+
+#####################################
+
+start_time = time.time()
+
+model = Model(solver_name=CBC)
+
+# binary variables indicating if arc (i,j) is used on the route or not
+x = [[model.add_var(var_type=BINARY) for j in V] for i in V]
+
+# continuous variable to prevent subtours: each city will have a
+# different sequential id in the planned route except the first one
+y = [model.add_var() for i in V]
+
+# objective function: minimize the distance
+model.objective = minimize(xsum(c[i][j]*x[i][j] for i in V for j in V))
+
+# constraint : leave each city only once
+for i in V:
+    model += xsum(x[i][j] for j in V - {i}) == 1
+
+# constraint : enter each city only once
+for i in V:
+    model += xsum(x[j][i] for j in V - {i}) == 1
+
+# subtour elimination
+for (i, j) in product(V - {0}, V - {0}):
+    if i != j:
+        model += y[i] - (n+1)*x[i][j] >= y[j]-n
+
+# optimizing
+model.optimize()
+
+# checking if a solution was found
+if model.num_solutions:
+    out.write('route with total distance %g found: %s'
+              % (model.objective_value, places[0]))
+    nc = 0
+    while True:
+        nc = [i for i in V if x[nc][i].x >= 0.99][0]
+        out.write(' -> %s' % places[nc])
+        if nc == 0:
+            break
+    out.write('\n')
+
+print("--- %s seconds ---" % (time.time() - start_time))
